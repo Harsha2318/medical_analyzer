@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Medical Document Analyzer</title>
+  <link href="https://cdn.jsdelivr.net/npm/daisyui@4.7.2/dist/full.min.css" rel="stylesheet" type="text/css" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/5.2.0/github-markdown.min.css">
+  <style>
+    .markdown-body { box-sizing: border-box; min-width: 200px; max-width: 100%; padding: 1rem; }
+    .markdown-body h1, .markdown-body h2, .markdown-body h3 { border-bottom: 1px solid var(--border-color); padding-bottom: 0.3em; }
+  </style>
+</head>
+<body x-data="{
+  isUploading: false, result: null, errorMessage: null, isDragging: false, theme: 'light',
+  toggleTheme() { this.theme = this.theme === 'light' ? 'dark' : 'light'; document.documentElement.setAttribute('data-theme', this.theme); },
+  async handleSubmit(event) {
+    this.isUploading = true; this.result = null; this.errorMessage = null;
+    const formData = new FormData(event.target);
+    try {
+      const response = await fetch('/analyze-medical-document', { method: 'POST', body: formData });
+      const data = await response.json();
+      if (data.status === 'success') {
+        this.result = data;
+        document.getElementById('results').scrollIntoView({ behavior: 'smooth' });
+      } else {
+        this.errorMessage = data.message;
+      }
+    } catch (error) { this.errorMessage = 'An error occurred while processing the document'; }
+    this.isUploading = false;
+  },
+  renderMarkdown(text) { if (!text) return ''; return marked.parse(text); }
+}">
+  <!-- UI and upload logic as per previous code: hero section, upload panel, result cards -->
+  <div class="container mx-auto px-4 py-8">
+    <div id="upload-section" class="max-w-xl mx-auto">
+      <div class="card bg-base-100 shadow-xl">
+        <div class="card-body">
+          <h2 class="card-title">Upload Document</h2>
+          <form @submit.prevent="handleSubmit">
+            <div class="form-control w-full" @dragover.prevent="isDragging = true" @dragleave.prevent="isDragging = false" @drop.prevent="isDragging = false">
+              <label class="label">
+                <span class="label-text">Choose a file or drag it here</span>
+              </label>
+              <div class="border-2 border-dashed rounded-lg p-8 text-center transition-all duration-200" :class="{'border-primary bg-primary/5': isDragging}">
+                <input type="file" name="file" class="file-input file-input-bordered w-full max-w-xs" required />
+                <p class="mt-2 text-sm text-base-content/70">Supported format: PDF (max 10MB)</p>
+              </div>
+            </div>
+            <button type="submit" class="btn btn-primary w-full mt-4" :disabled="isUploading">
+              <span x-show="!isUploading">Analyze Document</span>
+              <span x-show="isUploading" class="loading loading-spinner"></span>
+              <span x-show="isUploading">Processing...</span>
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+    <div x-show="errorMessage" x-transition class="alert alert-error max-w-xl mx-auto mt-8">
+      <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+      <span x-text="errorMessage"></span>
+    </div>
+    <div id="results" x-show="result" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 transform -translate-y-4" x-transition:enter-end="opacity-100 transform translate-y-0" class="mt-8 space-y-8 max-w-4xl mx-auto">
+      <div class="card bg-base-100 shadow-xl">
+        <div class="card-body">
+          <h2 class="card-title text-primary">Document Analysis</h2>
+          <div class="divider"></div>
+          <div class="markdown-body" x-html="renderMarkdown(result?.analysis)"></div>
+        </div>
+      </div>
+      <div class="card bg-base-100 shadow-xl">
+        <div class="card-body">
+          <h2 class="card-title text-secondary">Medical Summary</h2>
+          <div class="divider"></div>
+          <div class="markdown-body" x-html="renderMarkdown(result?.summary)"></div>
+        </div>
+      </div>
+      <div class="card bg-base-100 shadow-xl">
+        <div class="card-body">
+          <h2 class="card-title text-accent">Diagnosis Validation</h2>
+          <div class="divider"></div>
+          <div class="markdown-body" x-html="renderMarkdown(result?.validation)"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <footer class="footer footer-center p-10 bg-base-300 text-base-content">
+    <aside>
+      <p>Copyright © 2024 - All rights reserved by Medical Document Analyzer</p>
+    </aside>
+  </footer>
+</body>
+</html>
